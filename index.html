@@ -1,15 +1,33 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDF 렌더링 및 서명 삽입</title>
+  <style>
+    #pdf-container {
+      position: relative;
+      width: 100%;
+      max-width: 600px; /* 최대 너비를 설정하여 큰 화면에서도 적절한 크기를 유지합니다. */
+      margin: auto;
+    }
+    canvas {
+      width: 100%;
+      border: 1px solid black;
+    }
+    #signature-pad {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
 </head>
 <body>
-  <input type="file" accept=".pdf" id="pdf-input" onchange="onPdfSelect(this)">
+  <input type="file" id="pdf-input" onchange="onPdfSelect(this)">
   <div id="pdf-container">
     <div id="pdf-container">
         <canvas id="pdf-canvas" width="0" height="0"></canvas>
         <canvas id="signature-pad" width="0" height="0"></canvas>
-    <button id="save-btn">서명 저장</button>
+    <button id="saveBtn">서명 저장</button>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.4.456/pdf.min.js"></script>
