@@ -81,34 +81,53 @@
     }
 
     function savePDFAndSignature() {
-      // PDF 캔버스 데이터 가져오기
-      const pdfData = pdfCanvas.toDataURL('image/png');
-
-      // 서명 캔버스 데이터 가져오기
-      const signatureData = signaturePad.toDataURL('image/png');
-
-      // PDF 첫 페이지와 서명 이미지 합성
-      const mergedImage = new Image();
-      mergedImage.onload = function() {
-        const mergedCanvas = document.createElement('canvas');
-        mergedCanvas.width = mergedImage.width;
-        mergedCanvas.height = mergedImage.height;
-        const mergedCtx = mergedCanvas.getContext('2d');
-
-        mergedCtx.drawImage(mergedImage, 0, 0);
-
-        // 합성된 이미지 데이터 가져오기
-        const mergedImageData = mergedCanvas.toDataURL('image/png');
-
-        // 저장 기능 구현 (예시: Blob 생성, 다운로드 링크 생성)
-        const blob = new Blob([mergedImageData], { type: 'image/png' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `서명_${getFormattedDate()}.png`;
-        link.click();
-      };
-      mergedImage.src = pdfData;
-    }
+        // PDF 캔버스 데이터 가져오기
+        const pdfData = pdfCanvas.toDataURL('image/png');
+      
+        // 서명 캔버스 데이터 가져오기
+        const signatureData = signaturePad.toDataURL('image/png');
+      
+        // PDF 첫 페이지와 서명 이미지 합성
+        const mergedImage = new Image();
+        mergedImage.onload = function() {
+          const mergedCanvas = document.createElement('canvas');
+          mergedCanvas.width = mergedImage.width;
+          mergedCanvas.height = mergedImage.height;
+          const mergedCtx = mergedCanvas.getContext('2d');
+      
+          // 먼저 PDF 이미지를 그립니다.
+          mergedCtx.drawImage(mergedImage, 0, 0);
+      
+          // 서명 이미지를 로드하고 합성합니다.
+          const signatureImage = new Image();
+          signatureImage.onload = function() {
+            mergedCtx.drawImage(signatureImage, 0, 0);
+      
+            // 합성된 이미지 데이터 가져오기
+            const mergedImageData = mergedCanvas.toDataURL('image/png');
+      
+            // Base64 데이터를 Blob으로 변환
+            const byteString = atob(mergedImageData.split(',')[1]);
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+              ia[i] = byteString.charCodeAt(i);
+            }
+            const blob = new Blob([ab], { type: 'image/png' });
+      
+            // 다운로드 링크 생성
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `서명_${getFormattedDate()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+          signatureImage.src = signatureData;
+        };
+        mergedImage.src = pdfData;
+      }
+      
     const canvas = document.getElementById('signature-pad');
     const context = canvas.getContext('2d');
     let isDrawing = false;
