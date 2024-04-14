@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <title>PDF 렌더링 및 서명 삽입</title>
+</head>
+<body>
+  <input type="file" accept=".pdf" id="pdf-input" onchange="onPdfSelect(this)">
+  <div id="pdf-container">
+    <div id="pdf-container">
+        <canvas id="pdf-canvas" width="0" height="0"></canvas>
+        <canvas id="signature-pad" width="0" height="0"></canvas>
+    <button id="save-btn">서명 저장</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.4.456/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.4.456/pdf.min.js"></script>
+  <script>
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.4.456/pdf.worker.min.js';
+
+    const pdfCanvas = document.getElementById('pdf-canvas');
+    const pdfCtx = pdfCanvas.getContext('2d');
+    const signaturePad = document.getElementById('signature-pad');
+    const signatureCtx = signaturePad.getContext('2d'); // Signature canvas context
+
+    function onPdfSelect(inputElement) {
+      const url = URL.createObjectURL(inputElement.files[0]);
+      initPDFViewer(url);
+    }
+
+    function initPDFViewer(pdfURL) {
+      return pdfjsLib.getDocument(pdfURL).promise.then(pdf => {
+        pdf.getPage(1).then(page => {  // Render only the first page
+          renderPage(page);
+        });
+      });
+    }
+
+    function renderPage(page) {
+      const viewport = page.getViewport({ scale: 1 });
+      pdfCanvas.height = viewport.height;
+      pdfCanvas.width = viewport.width;
+      signaturePad.height = viewport.height;
+      signaturePad.width = viewport.width;
+
+      page.render({
+        canvasContext: pdfCtx,
+        viewport: viewport
+      }).promise.then(() => {
+        // PDF 렌더링 완료 후 서명 캔버스 위치 조정
+        signaturePad.style.position = 'absolute';
+        signaturePad.style.left = 0;
+        signaturePad.style.top = 0;
+
+        // 이미지 클릭 및 드래그 방지
+        pdfCanvas.addEventListener('click', (event) => event.stopPropagation());
+        pdfCanvas.addEventListener('mousedown', (event) => event.stopPropagation());
+        pdfCanvas.addEventListener('mousemove', (event) => event.stopPropagation());
+
+        // 저장 기능 추가
+        saveBtn.addEventListener('click', () => savePDFAndSignature());
+      });
+    }
+
+    function savePDFAndSignature() {
+      // PDF 캔버스 데이터 가져오기
+      const pdfData = pdfCanvas.toDataURL('image/png');
+
+      // 서명 캔버스 데이터 가져오기
+      const signatureData = signaturePad.toDataURL('image/png');
+
+      // PDF 첫 페이지와 서명 이미지 합성
+      const mergedImage = new Image();
+      mergedImage.onload = function() {
+        const mergedCanvas = document.createElement('canvas');
+        mergedCanvas.width = mergedImage.width;
+        mergedCanvas.height = mergedImage.height;
+        const mergedCtx = mergedCanvas.getContext('2d');
+
+        mergedCtx.drawImage(mergedImage, 0, 0);
+
+        // 합성된 이미지 데이터 가져오기
+        const mergedImageData = mergedCanvas.toDataURL('image/png');
+
+        // 저장 기능 구현 (예시: Blob 생성, 다운로드 링크 생성)
+        const blob = new Blob([mergedImageData], { type: 'image/png' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `서명_${getFormattedDate()}.png`;
+        link.click();
+      };
+      mergedImage.src = pdfData;
+    }
+    const canvas = document.getElementById('signature-pad');
+    const context = canvas.getContext('2d');
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+  
+    function draw(x, y) {
+      if (!isDrawing) return;
+      context.beginPath();
+      context.moveTo(lastX, lastY);
+      context.lineTo(x, y);
+      context.stroke();
+      lastX = x;
+      lastY = y;
+    }
+  
+    canvas.addEventListener('mousedown', (e) => {
+      isDrawing = true;
+      [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+  
+    canvas.addEventListener('mousemove', (e) => {
+      draw(e.offsetX, e.offsetY);
+    });
+  
+    canvas.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
+  
+    canvas.addEventListener('mouseout', () => {
+      isDrawing = false;
+    });
+  
+    // Add touch event listeners for mobile devices
+    canvas.addEventListener('touchstart', (e) => {
+      isDrawing = true;
+      let touch = e.touches[0];
+      [lastX, lastY] = [touch.pageX - touch.target.offsetLeft, touch.pageY - touch.target.offsetTop];
+    });
+  
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault(); // Prevent scrolling when touching the canvas
+      if (e.touches.length == 1) {
+        let touch = e.touches[0];
+        draw(touch.pageX - touch.target.offsetLeft, touch.pageY - touch.target.offsetTop);
+      }
+    }, { passive: false });
+  
+    canvas.addEventListener('touchend', () => {
+      isDrawing = false;
+    });
+  
+    function getFormattedDate() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const day = now.getDate().toString().padStart(2, '0');
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const seconds = now.getSeconds().toString().padStart(2, '0');
+      return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+    };
+  </script>
+</body>
+</html>
